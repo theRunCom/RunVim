@@ -88,6 +88,7 @@ return {
       }
     end,
   },
+  --[[
   {
     "nvimtools/none-ls.nvim",
     optional = true,
@@ -107,4 +108,5 @@ return {
       },
     },
   },
+]]
 }
