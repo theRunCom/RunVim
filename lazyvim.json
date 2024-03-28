@@ -1,9 +1,11 @@
 {
   "extras": [
-
+    "plugins.extras.lang.cairo",
+    "plugins.extras.lang.sh",
+    "plugins.extras.lang.zig"
   ],
   "news": {
-    "NEWS.md": "2123"
+    "NEWS.md": "2850"
   },
-  "version": 2
+  "version": 3
 }

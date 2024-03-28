@@ -1,80 +1,167 @@
 return {
-  { "catppuccin/nvim" },
   {
     "nvim-lualine/lualine.nvim",
     event = "VeryLazy",
-    opts = {
-      options = {
-        theme = "catppuccin",
-        component_separators = "|",
-        section_separators = { left = "", right = "" },
-        globalstatus = true,
-        ignore_focus = {
-          "dapui_watches",
-          "dapui_stacks",
-          "dapui_breakpoints",
-          "dapui_scopes",
-          "dapui_console",
-          "dap-repl",
+    opts = function()
+      local Util = require("lazyvim.util")
+      local lualine_require = require("lualine_require")
+      lualine_require.require = require
+
+      vim.o.laststatus = vim.g.lualine_laststatus
+
+      local colors = {
+        bg = "#222436",
+        fg = "#c0caf5",
+        yellow = "#ECBE7B",
+        cyan = "#7dcfff",
+        darkblue = "#4266b3",
+        green = "#9ece6a",
+        orange = "#ff9e64",
+        violet = "#bb9af7",
+        magenta = "#bb9af7",
+        blue = "#7aa2f7",
+        red = "#f7768e",
+      }
+
+      local conditions = {
+        buffer_not_empty = function()
+          return vim.fn.empty(vim.fn.expand("%:t")) ~= 1
+        end,
+        hide_in_width = function()
+          return vim.fn.winwidth(0) > 80
+        end,
+        check_git_workspace = function()
+          local filepath = vim.fn.expand("%:p:h")
+          local gitdir = vim.fn.finddir(".git", filepath .. ";")
+          return gitdir and #gitdir > 0 and #gitdir < #filepath
+        end,
+      }
+
+      return {
+        options = {
+          theme = {
+            -- We are going to use lualine_c an lualine_x as left and
+            -- right section. Both are highlighted by c theme .  So we
+            -- are just setting default looks o statusline
+            normal = { c = { fg = colors.fg, bg = colors.bg } },
+            inactive = { c = { fg = colors.fg, bg = colors.bg } },
+          },
+          globalstatus = true,
+          disabled_filetypes = { statusline = { "dashboard", "alpha", "starter" } },
+          component_separators = "",
+          section_separators = "",
         },
-      },
-      sections = {
-        lualine_a = {
-          { "mode", separator = { left = "" }, right_padding = 2 },
-        },
-        lualine_b = { "branch", "diff", "diagnostics" },
-        lualine_c = { "filename" },
-        lualine_x = {
-          "filetype",
-          {
-            function()
-              local icon = require("lazyvim.config").icons.kinds.Copilot
-              local status = require("copilot.api").status.data
-              return icon .. (status.message or "")
-            end,
-            cond = function()
-              if not package.loaded["copilot"] then
-                return
-              end
-              local ok, clients = pcall(require("lazyvim.util").lsp.get_clients, { name = "copilot", bufnr = 0 })
-              if not ok then
-                return false
-              end
-              return ok and #clients > 0
-            end,
-            color = function()
-              if not package.loaded["copilot"] then
-                return
-              end
-              local Util = require("lazyvim.util")
-              local colors = {
-                [""] = Util.ui.fg("Special"),
-                ["Normal"] = Util.ui.fg("Special"),
-                ["Warning"] = Util.ui.fg("DiagnosticError"),
-                ["InProgress"] = Util.ui.fg("DiagnosticWarn"),
-              }
-              local status = require("copilot.api").status.data
-              return colors[status.status] or colors[""]
-            end,
+        sections = {
+          -- these are to remove the defaults
+          lualine_a = {},
+          lualine_b = {},
+          lualine_y = {},
+          lualine_z = {},
+          -- These will be filled later
+          lualine_c = {
+            {
+              function()
+                return ""
+              end,
+              color = { fg = colors.darkblue }, -- Sets highlighting of component
+              padding = { left = 0, right = 1 }, -- We don't need space before this
+            },
+            {
+              -- mode component
+              function()
+                return "🛠️"
+              end,
+              color = function()
+                -- auto change color according to neovims mode
+                local mode_color = {
+                  n = colors.red,
+                  i = colors.green,
+                  v = colors.blue,
+                  [" "] = colors.blue,
+                  V = colors.blue,
+                  c = colors.magenta,
+                  no = colors.red,
+                  s = colors.orange,
+                  S = colors.orange,
+                  ["_"] = colors.orange,
+                  ic = colors.yellow,
+                  R = colors.violet,
+                  Rv = colors.violet,
+                  cv = colors.red,
+                  ce = colors.red,
+                  r = colors.cyan,
+                  rm = colors.cyan,
+                  ["r?"] = colors.cyan,
+                  ["!"] = colors.red,
+                  t = colors.red,
+                }
+                return { fg = mode_color[vim.fn.mode()] }
+              end,
+              padding = { right = 1 },
+            },
+            {
+              -- filesize component
+              "filesize",
+              cond = conditions.buffer_not_empty,
+            },
+            {
+              Util.lualine.pretty_path(),
+              cond = conditions.buffer_not_empty,
+              color = { fg = colors.magenta, gui = "bold" },
+            },
+
+            { "location" },
+            { "progress", color = { fg = colors.fg, gui = "bold" } },
+            {
+              "diagnostics",
+              souces = { "nvim_lsp" },
+              symbols = { error = " ", warn = " ", info = " " },
+              diagnostics_color = {
+                color_error = { fg = colors.red },
+                color_warn = { fg = colors.yellow },
+                color_info = { fg = colors.cyan },
+              },
+            },
+            {
+              function()
+                return "%="
+              end,
+            },
+          },
+          lualine_x = {
+            {
+              "branch",
+              icon = "",
+              color = { fg = colors.violet, gui = "bold" },
+            },
+            {
+              "diff",
+              symbols = { added = " ", modified = " ", removed = " " },
+              diff_color = {
+                added = { fg = colors.green },
+                modified = { fg = colors.orange },
+                removed = { fg = colors.red },
+              },
+              cond = conditions.hide_in_width,
+            },
+            {
+              function()
+                return " " .. os.date("%R")
+              end,
+            },
           },
         },
-        lualine_y = { "progress" },
-        lualine_z = {
-          {
-            function()
-              local loc = require("lualine.components.location")()
-              local sel = require("lualine.components.selectioncount")()
-              if sel ~= "" then
-                loc = loc .. " (" .. sel .. " sel)"
-              end
-              return loc
-            end,
-            separator = { right = "" },
-            left_padding = 2,
-          },
+        inactive_sections = {
+          -- these are to remove the defaults
+          lualine_a = {},
+          lualine_b = {},
+          lualine_y = {},
+          lualine_z = {},
+          lualine_c = {},
+          lualine_x = {},
         },
-      },
-      extensions = { "neo-tree" },
-    },
+        extensions = { "neo-tree", "lazy" },
+      }
+    end,
   },
 }
